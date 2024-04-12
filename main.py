@@ -111,7 +111,7 @@ def openNewWindow(data: tuple):
     newWindow.title("Pass")
  
     # sets the geometry of toplevel
-    newWindow.geometry("280x290")
+    newWindow.geometry("294x290")
     
     # A ctk.CTkLabel widget to show in toplevel
     ctk.CTkLabel(newWindow, text="Name: ").grid(row=0, column=0)
@@ -128,7 +128,7 @@ def openNewWindow(data: tuple):
     text=f'''Passenger Mr./Ms. {data[0]} with PNR number {data[7]} travelling via {data[2]} flight number {data[3]} departing from {data[4]} airport to {data[5]} airport at {data[6]} hrs.
     \nPlease note that boarding begins at {data[6]-100} hrs and closes 20 minutes before departure.\nHave a safe journey!'''
 
-    ctk.CTkButton(newWindow, text="Generate QR", command=lambda: generate_qrcode(text)).grid(row=9, column=0)
+    ctk.CTkButton(newWindow, text="Generate QR", command=lambda: generate_qrcode(text)).grid(row=9, column=0, padx=5)
     ctk.CTkButton(newWindow, text="  Show QR  ", command=lambda: Image.open('boarding_pass_qr.png').show()).grid(row=9, column=1)
  
 
@@ -179,19 +179,20 @@ if __name__ == "__main__":
     app = ctk.CTk()
     app.title("Boarding Pass Generator")
     app.iconphoto(False, PhotoImage(file='icon.png'))
+    app.geometry("360x345")
 
     ctk.CTkLabel(app, text="Enter your name: ").grid(row=0)
     ctk.CTkLabel(app, text="Enter phone number: ").grid(row=1)
     ctk.CTkLabel(app, text="Enter airline: ").grid(row=2)
     ctk.CTkLabel(app, text="Enter flight number: ").grid(row=3)
-    ctk.CTkLabel(app, text=" Enter departure airport (e.g., Bangalore (BLR)): ").grid(row=4)
-    ctk.CTkLabel(app, text=" Enter arrival airport (e.g., Delhi (DEL)): ").grid(row=5)
+    ctk.CTkLabel(app, text="    Enter departure airport (e.g. BLR):   ").grid(row=4)
+    ctk.CTkLabel(app, text=" Enter arrival airport (e.g. DEL): ").grid(row=5)
     ctk.CTkLabel(app, text="Choose flight departure time: ").grid(row=6)
    
 
     entries = [ctk.CTkEntry(app) for _ in range(7)]
     for i, entry in enumerate(entries):
-        entry.grid(row=i, column=1)
+        entry.grid(row=i, column=1, pady=1)
     
     
     time = ()
@@ -206,7 +207,7 @@ if __name__ == "__main__":
     ctk.CTkLabel(app, text="Enter your PNR: ").grid(row=9)
     pnr_entry = ctk.CTkEntry(app)
     pnr_entry.grid(row=9, column=1)
-    ctk.CTkButton(app, text='Print Boarding Pass', command=lambda: print_boarding_pass(conn, c, pnr_entry)).grid(row=10, column=1, sticky=W, pady=4)
+    ctk.CTkButton(app, text='Print Boarding Pass', command=lambda: print_boarding_pass(conn, c, pnr_entry)).grid(row=10, column=1, sticky=W, pady=8)
 
 
     app.mainloop()
