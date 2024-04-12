@@ -63,6 +63,7 @@ def get_time():
     time_picker.pack(expand=True, fill="both")
 
     theme = AnalogThemes(time_picker)
+    theme.setDracula()
     ok_btn = ctk.CTkButton(top, text="Okay", command=lambda: updateTime(time_picker.time()))
     ok_btn.pack()
 
