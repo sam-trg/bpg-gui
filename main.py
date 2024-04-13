@@ -8,11 +8,26 @@ import tkinter.messagebox
 from tktimepicker import AnalogPicker, AnalogThemes, constants
 from PIL import Image, ImageTk
 import customtkinter as ctk
+import csv
 
 ctk.set_appearance_mode("dark")  # Modes: "System" (standard), "Dark", "Light"
 ctk.set_default_color_theme("dark-blue")  # Themes: "blue" (standard), "green", "dark-blue"
 
+def create_airport_table(conn, csv_file):
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS airports (
+                    code TEXT PRIMARY KEY,
+                    name TEXT,
+                    city TEXT
+                 )''')
+    
+    with open(csv_file, 'r', newline='', encoding='utf-8') as file:
+        reader = csv.reader(file)
+        next(reader)  # Skip header row
+        for row in reader:
+            c.execute("INSERT OR REPLACE INTO airports VALUES (?, ?, ?)", row)
 
+    conn.commit()
 
 def generate_pnr():
     return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
@@ -29,7 +44,6 @@ def generate_qrcode(text):
 
     img = qr.make_image(fill_color="black", back_color="white")
     img.save("boarding_pass_qr.png")
-
 
 
 
@@ -85,6 +99,12 @@ def check_in(conn, c, entries):
         message = f"\nCheck-in failed! Phone number {phone_number} is already checked in."
         tkinter.messagebox.showerror("Check-in failed", message)
     
+# Function to find airport details based on city
+def find_airport(city, cursor):
+    cursor.execute("SELECT code, name FROM airports WHERE city LIKE ?", ('%'+city+'%',))
+    result = cursor.fetchone()
+    return result if result else (None, None)  # Return None if city not found
+
 
 def print_boarding_pass(conn, c, pnr_entry):
     pnr = pnr_entry.get()
@@ -95,7 +115,21 @@ def print_boarding_pass(conn, c, pnr_entry):
     if not data:
         print("Invalid PNR. Please try again.")
         return
+    
+    departure_city = data[4]  # Departure city
+    arrival_city = data[5]  # Arrival city
+    departure_iata, departure_name = find_airport(departure_city, c)
+    arrival_iata, arrival_name = find_airport(arrival_city, c)
 
+    if departure_iata and arrival_iata:
+        # Add departure and arrival airport details to the boarding_passes table
+        c.execute('''UPDATE boarding_passes SET departure_airport_name = ?, departure_airport_code = ?, arrival_airport_name = ?, arrival_airport_code = ? WHERE pnr = ?''',
+                  (departure_name, departure_iata, arrival_name, arrival_iata, pnr))
+        conn.commit()
+        
+    else:
+        print("Could not find airport information for provided cities.")
+    
     openNewWindow(data)
 
 
@@ -105,7 +139,6 @@ def openNewWindow(data: tuple):
     # be treated as a new window
     newWindow = ctk.CTkToplevel(app)
    
-    newWindow.iconphoto(False, PhotoImage(file='icon.png'))
     # sets the title of the
     # Toplevel widget
     newWindow.title("Pass")
@@ -124,8 +157,8 @@ def openNewWindow(data: tuple):
     ctk.CTkLabel(newWindow, text="Arrival Airport: ").grid(row=7, column=0)
     ctk.CTkLabel(newWindow, text="").grid(row=8, column=0)
 
-
-    text=f'''Passenger Mr./Ms. {data[0]} with PNR number {data[7]} travelling via {data[2]} flight number {data[3]} departing from {data[4]} airport to {data[5]} airport at {data[6]} hrs.
+    # Construct boarding pass information string including airport details
+    text = f'''Passenger Mr./Ms. {data[0]} with PNR number {data[7]} travelling via {data[2]} flight number {data[3]} departing from {data[8]} to {data[10]} at {data[6]} hrs.
     \nPlease note that boarding begins at {data[6]-100} hrs and closes 20 minutes before departure.\nHave a safe journey!'''
 
     ctk.CTkButton(newWindow, text="Generate QR", command=lambda: generate_qrcode(text)).grid(row=9, column=0, padx=5)
@@ -152,8 +185,8 @@ def openNewWindow(data: tuple):
     ctk.CTkLabel(newWindow, text=f"{data[3]}").grid(row=3, column=1)
     ctk.CTkLabel(newWindow, text="").grid(row=4, column=1)
     ctk.CTkLabel(newWindow, text=f"{data[6]-100} hrs").grid(row=5, column=1)
-    ctk.CTkLabel(newWindow, text=f"{data[4]}").grid(row=6, column=1)
-    ctk.CTkLabel(newWindow, text=f"{data[5]}").grid(row=7, column=1)
+    ctk.CTkLabel(newWindow, text=f"{data[9]}").grid(row=6, column=1)
+    ctk.CTkLabel(newWindow, text=f"{data[11]}").grid(row=7, column=1)
 
 
 
@@ -167,7 +200,11 @@ def create_table(conn, c):
               departure_airport TEXT,
               arrival_airport TEXT,
               departure_time NUMBER,
-              pnr TEXT
+              pnr TEXT,
+              departure_airport_name TEXT,
+              departure_airport_code TEXT,
+              arrival_airport_name TEXT,
+              arrival_airport_code TEXT
 )''')
 
     conn.commit()
@@ -175,39 +212,38 @@ def create_table(conn, c):
 if __name__ == "__main__":
     conn, c = connect_db()
     create_table(conn, c)  # Create table if it doesn't exist
-
+    create_airport_table(conn, 'airport_codes.csv')
     app = ctk.CTk()
     app.title("Boarding Pass Generator")
-    app.iconphoto(False, PhotoImage(file='icon.png'))
-    app.geometry("360x345")
+    app.geometry("290x345")
 
     ctk.CTkLabel(app, text="Enter your name: ").grid(row=0)
     ctk.CTkLabel(app, text="Enter phone number: ").grid(row=1)
     ctk.CTkLabel(app, text="Enter airline: ").grid(row=2)
     ctk.CTkLabel(app, text="Enter flight number: ").grid(row=3)
-    ctk.CTkLabel(app, text="    Enter departure airport (e.g. BLR):   ").grid(row=4)
-    ctk.CTkLabel(app, text=" Enter arrival airport (e.g. DEL): ").grid(row=5)
-    ctk.CTkLabel(app, text="Choose flight departure time: ").grid(row=6)
+    ctk.CTkLabel(app, text="Enter departure city:   ").grid(row=4)
+    ctk.CTkLabel(app, text="Enter arrival city: ").grid(row=5)
+    ctk.CTkLabel(app, text="  Choose departure time:  ").grid(row=6)
    
 
     entries = [ctk.CTkEntry(app) for _ in range(7)]
     for i, entry in enumerate(entries):
-        entry.grid(row=i, column=1, pady=1)
+        entry.grid(row=i, column=1, pady=1, padx=2)
     
     
     time = ()
-    time_lbl = ctk.CTkLabel(app)
-    time_btn = ctk.CTkButton(app, text="Get Time", command=get_time)
+    time_lbl = ctk.CTkLabel(app, text="")
+    time_btn = ctk.CTkButton(app, text=" Get Time ", command=get_time)
     time_lbl.grid(row=7, column=1)
     time_btn.grid(row=7, column=0)
     
 
-    ctk.CTkButton(app, text='  Click to Check In  ', command=lambda: check_in(conn, c, entries)).grid(row=8, column=1, sticky=W, pady=4)
+    ctk.CTkButton(app, text='  Click to Check In  ', command=lambda: check_in(conn, c, entries)).grid(row=8, column=1, sticky=W, pady=4, padx=2)
 
     ctk.CTkLabel(app, text="Enter your PNR: ").grid(row=9)
     pnr_entry = ctk.CTkEntry(app)
     pnr_entry.grid(row=9, column=1)
-    ctk.CTkButton(app, text='Print Boarding Pass', command=lambda: print_boarding_pass(conn, c, pnr_entry)).grid(row=10, column=1, sticky=W, pady=8)
+    ctk.CTkButton(app, text='Print Boarding Pass', command=lambda: print_boarding_pass(conn, c, pnr_entry)).grid(row=10, column=1, sticky=W, pady=12, padx=2)
 
 
     app.mainloop()
