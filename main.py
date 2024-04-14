@@ -70,7 +70,6 @@ def updateTime(time):
 def get_time():
 
     top = ctk.CTkToplevel(app)
-    top.iconphoto(False, PhotoImage(file='clock_icon.png'))
     top.title("Time Picker")
 
     time_picker = AnalogPicker(top, type=constants.HOURS24)
