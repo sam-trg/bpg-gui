@@ -50,7 +50,6 @@ def generate_qrcode(text):
 def display_qrcode():
 
     qr_window = ctk.CTkToplevel(app)
-    qr_window.iconphoto(False, PhotoImage(file='icon.png'))
     qr_window.title("QR Code")
     image_path = "boarding_pass_qr.png"
     image = image = Image.open(image_path)
